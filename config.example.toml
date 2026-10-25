@@ -1,0 +1,34 @@
+# Copy to config.toml (gitignored) and fill in.
+
+[discord]
+token_file = "~/.config/discord-reader/bot-token"    # bot token, chmod 600 (DISCORD_TOKEN overrides)
+channel = "123456789012345678"               # a server channel the bot can read (needs the Message Content intent)
+label = "Project team"                        # how the chat is named in prompts and logs
+poll = 15                                     # seconds between polls
+timezone = "Europe/London"
+attachments_max_mb = 10                       # save attachments up to this size so Claude can Read them
+# client = "mypackage.module:Class"           # use another client class with the same methods (tests, other transports)
+
+[paths]
+data_dir = "data"                             # relative to this file
+
+[names]                                       # user id -> name used in transcripts (default: Discord display name)
+# "123456789012345678" = "Alice"
+
+[agent]
+repo = "owner/name"
+workdir = "~/dev/name"                        # a clone of that repo; Claude reads it for context, never writes
+model = "claude-sonnet-5-5"
+debounce = 30                                 # seconds of quiet before a run
+max_wait = 300                                # run anyway this long after the first unprocessed message
+context = 40                                  # earlier messages shown as context
+prefix = ""                                   # posts starting with this are the agent's own; a bot account needs none
+max_sends_per_hour = 8
+names = ["claude", "bot"]                     # it answers when addressed by one of these (and its @username)
+max_budget_usd = 0                            # per-run cap for claude -p (0 = none)
+brief = """
+Who the team is and what the repo holds, e.g.: We build a robot arm controller in Rust. `NOTES.md` is
+the running log of what was tried, `docs/plan.md` the plan.
+"""
+[agent.github_users]
+# "Alice" = "alice-gh"                        # chat display name -> GitHub login, for --assignee

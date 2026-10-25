@@ -1,0 +1,12 @@
+# private chat data and credentials: never commit
+data/
+config.toml
+*.db
+*.db-*
+.env
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/

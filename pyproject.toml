@@ -1,0 +1,23 @@
+[project]
+name = "discord-reader"
+version = "0.2.0"
+description = "Archive one Discord channel with a bot; chat-agent turns it into GitHub issues and short replies"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["httpx", "chatagent"]
+
+[project.scripts]
+discord-reader = "discord_reader.cli:main"
+
+[dependency-groups]
+dev = ["pytest"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/discord_reader"]
+
+[tool.uv.sources]
+chatagent = { path = "../chat-agent", editable = true }  # clone https://github.com/Adellama75/chat-agent next to this repo
