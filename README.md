@@ -47,6 +47,8 @@ systemctl --user stop discord-reader-agent  # stop entirely
 discord-reader send "..." [--reply-to ID]   # post by hand (rate-limited)
 discord-reader transcript --last 30         # the archived chat
 discord-reader follow                       # stream bursts for a coordinator session
+discord-reader watch                        # keep the archive current over the Gateway (push, read-only)
+systemctl --user enable --now discord-reader-watch@NAME   # `watch` for ~/.config/discord-reader/NAME.toml
 ```
 
 Smoke test: write `@claude what's open?` in the channel; it should answer within ~30 s and the run appears in

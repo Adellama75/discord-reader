@@ -1,0 +1,16 @@
+[Unit]
+Description=discord-reader watch (%i): keep ~/.config/discord-reader/%i.toml's channel archived over the Gateway (push, read-only)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=%h/dev/discord-reader
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=DISCORD_READER_CONFIG=%h/.config/discord-reader/%i.toml
+EnvironmentFile=-%h/.config/discord-reader/env
+ExecStart=%h/.local/bin/discord-reader watch
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=default.target

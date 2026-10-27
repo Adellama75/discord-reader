@@ -273,3 +273,33 @@ def test_new_messages_carry_ids_for_reply_to(conf, fake, tmp_path):
     loop.poll(now=0)
     new = (tmp_path / "prompt.txt").read_text().split("## New messages")[1]
     assert f"#{m['id']}] kim:" in new
+
+
+def test_gateway_events_sync_the_channel_and_ignore_others(conf, fake):
+    from discord_reader.gateway import handle
+
+    fake.add(KIM, "first")
+    assert handle(conf, fake, {"t": "READY", "d": {"user": {"username": "teambot"}}}) == "catch-up"
+    assert [m.content for m in messages_after(conf.db, CHANNEL, 0)] == ["first"]
+
+    fake.add(KIM, "pushed")
+    assert handle(conf, fake, {"t": "MESSAGE_CREATE", "d": {"channel_id": "999"}}) is None  # another channel
+    assert handle(conf, fake, {"t": "MESSAGE_CREATE", "d": {"channel_id": CHANNEL}}) == "sync"
+    assert [m.content for m in messages_after(conf.db, CHANNEL, 0)] == ["first", "pushed"]
+
+    fake.msgs[-1]["content"], fake.msgs[-1]["edited_timestamp"] = "pushed, edited", "2026-10-20T18:00:00+00:00"
+    assert handle(conf, fake, {"t": "MESSAGE_UPDATE", "d": {"channel_id": CHANNEL}}) == "reconcile"
+    assert messages_after(conf.db, CHANNEL, 0)[-1].content == "pushed, edited"
+    assert handle(conf, fake, {"t": "TYPING_START", "d": {"channel_id": CHANNEL}}) is None
+
+
+def test_gateway_reconnect_catches_up_on_what_was_missed(conf, fake):
+    from discord_reader.gateway import handle
+
+    fake.add(KIM, "before the drop")
+    handle(conf, fake, {"t": "READY", "d": {"user": {"username": "teambot"}}})
+    fake.add(LEE, "while disconnected 1")  # no MESSAGE_CREATE ever arrives for these
+    fake.add(LEE, "while disconnected 2")
+    handle(conf, fake, {"t": "READY", "d": {"user": {"username": "teambot"}}})
+    assert [m.content for m in messages_after(conf.db, CHANNEL, 0)] == \
+        ["before the drop", "while disconnected 1", "while disconnected 2"]

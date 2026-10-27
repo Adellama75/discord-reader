@@ -4,7 +4,11 @@ version = "0.2.0"
 description = "Archive one Discord channel with a bot; chat-agent turns it into GitHub issues and short replies"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = ["httpx", "chatagent"]
+dependencies = [
+    "httpx",
+    "chatagent",
+    "websockets>=13",
+]
 
 [project.scripts]
 discord-reader = "discord_reader.cli:main"

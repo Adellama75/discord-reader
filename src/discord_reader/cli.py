@@ -83,6 +83,14 @@ def cmd_send(c: cfg.Config, args) -> None:
     print(f"sent {m.get('id')}" + (f" (reply to {ref})" if ref else ""))
 
 
+def cmd_watch(c: cfg.Config, args) -> None:
+    """Keep the archive current over the Gateway (push): sync on every event for the channel and on
+    every reconnect. Read-only; run `follow` or `agent` on the archive it keeps."""
+    from .gateway import watch
+
+    watch(c, _client(c), cfg.token(c), log=lambda s: print(s, flush=True))
+
+
 def cmd_follow(c: cfg.Config, args) -> None:
     """Stream each burst of new messages (and reactions) to stdout for a coordinator session; see
     chatagent.follow. Reads the archive the service keeps; polls Discord itself only with --sync."""
@@ -122,6 +130,7 @@ def main() -> None:
     sub.add_parser("whoami", help="confirm the token works").set_defaults(fn=cmd_whoami)
     sub.add_parser("status", help="account, channel, archive size, agent cursor").set_defaults(fn=cmd_status)
     sub.add_parser("sync", help="fetch new messages into data/messages.db").set_defaults(fn=cmd_sync)
+    sub.add_parser("watch", help="keep data/messages.db current over the Gateway (push, no agent)").set_defaults(fn=cmd_watch)
 
     t = sub.add_parser("transcript", help="print the archived chat")
     t.add_argument("--days", type=float, default=1)
