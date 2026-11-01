@@ -3,7 +3,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from chatagent import Msg, core
+from chatagent import Chat, Msg, core
 
 from . import config as cfg
 from .store import Message, last_reaction_seq, last_seq, message_by_id, messages_after, messages_before, reactions_after, transcript
@@ -21,7 +21,7 @@ def replies_to_bot(m: Message, me: str, prefix: str) -> bool:
     return m.reply_author_id == me and (m.reply_to or "").partition(": ")[2].startswith(prefix)
 
 
-class DiscordChat:
+class DiscordChat(Chat):
     platform, issue_label, who_is_me = "Discord", "discord", ""
 
     def __init__(self, c: cfg.Config, client, prefix: str = ""):
