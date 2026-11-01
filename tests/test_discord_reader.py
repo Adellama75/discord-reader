@@ -160,6 +160,39 @@ def test_send_enforces_rate_limit(conf, fake, monkeypatch, capsys):
         cli.cmd_send(conf, ns("   "))
 
 
+def test_react_edit_delete_call_the_client(conf, fake, monkeypatch):
+    monkeypatch.setattr(cli, "_client", lambda c: fake)
+    mid = fake.add(KIM, "hello")["id"]
+    ns = lambda **k: type("A", (), {"message_id": mid, "emoji": "\U0001f44d", "remove": False, "text": None, **k})()
+
+    cli.cmd_react(conf, ns())
+    assert ("react", mid, "\U0001f44d", False) in fake.calls
+    cli.cmd_react(conf, ns(remove=True))
+    assert ("react", mid, "\U0001f44d", True) in fake.calls
+
+    cli.cmd_edit(conf, ns(text="edited!"))
+    assert ("edit", mid, "edited!") in fake.calls
+    assert any(m["id"] == mid and m["content"] == "edited!" for m in fake.msgs)
+
+    cli.cmd_delete(conf, ns())
+    assert ("delete", mid) in fake.calls
+    assert all(m["id"] != mid for m in fake.msgs)
+
+
+def test_write_verbs_are_in_the_allowed_tools(conf, fake):
+    chat = DiscordChat(conf, fake)
+    for v in ("send", "react", "edit", "delete"):
+        assert f"Bash(discord-reader {v}:*)" in chat.tools
+
+
+def test_edit_rejects_empty_text(conf, fake, monkeypatch):
+    monkeypatch.setattr(cli, "_client", lambda c: fake)
+    mid = fake.add(ME, "x")["id"]
+    ns = type("A", (), {"message_id": mid, "text": "   "})()
+    with pytest.raises(SystemExit, match="nothing to edit"):
+        cli.cmd_edit(conf, ns)
+
+
 def test_config_resolves_relative_paths_against_the_file(tmp_path):
     (tmp_path / "config.toml").write_text(
         '[discord]\nchannel = 42\n[paths]\ndata_dir = "d"\n[names]\n7 = "Ada"\n'
@@ -224,7 +257,7 @@ def test_reactions_are_synced_rendered_and_streamed(conf, fake, monkeypatch, cap
     m = fake.add(KIM, "should we adopt plan_b?")
     sync(conf, fake)
     assert sync_reactions(conf, fake) == []
-    fake.react(m["id"], "\U0001f44d", LEE, ME)
+    fake.incoming_react(m["id"], "\U0001f44d", LEE, ME)
     added = sync_reactions(conf, fake)
     assert {(u) for _, _, u, _ in added} == {LEE, ME}
     assert fake.calls[-1] == ("reaction_users", m["id"], "\U0001f44d")
@@ -236,7 +269,7 @@ def test_reactions_are_synced_rendered_and_streamed(conf, fake, monkeypatch, cap
     monkeypatch.setattr(cli, "_client", lambda c: fake)
     import time as _t
     monkeypatch.setattr(_t, "sleep", lambda s: None)
-    fake.react(m["id"], "\U0001f389", KIM)
+    fake.incoming_react(m["id"], "\U0001f389", KIM)
     sync_reactions(conf, fake)
     ns = type("A", (), {"after": None, "interval": 0, "sync": False, "polls": 1})()
     monkeypatch.setattr("discord_reader.chat.last_reaction_seq", lambda db: 0)  # follower started before the reactions

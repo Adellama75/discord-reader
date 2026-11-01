@@ -6,7 +6,7 @@ from pathlib import Path
 
 from . import config as cfg
 from .discord import load_client
-from .store import last_seq, messages_after, messages_before, messages_since, record_send, sent_recently, transcript
+from .store import last_seq, messages_after, messages_before, messages_since, transcript
 
 
 def _client(c: cfg.Config):
@@ -63,24 +63,47 @@ def cmd_transcript(c: cfg.Config, args) -> None:
     print(transcript(msgs, c.names, c.timezone, flag, ids=True) or "No messages")
 
 
+def _chat(c: cfg.Config):
+    from .chat import DiscordChat
+    return DiscordChat(c, _client(c), c.agent.prefix if c.agent else "")
+
+
 def cmd_send(c: cfg.Config, args) -> None:
     """Post one message to the configured channel, under the hourly rate limit."""
     text = args.text if args.text is not None else sys.stdin.read()
-    text = text.strip()
-    if not text:
-        sys.exit("nothing to send")
-    if len(text) > 1950:
-        sys.exit(f"too long for Discord ({len(text)} > 1950 characters)")
-    limit = c.agent.max_sends_per_hour if c.agent else 8
-    n = sent_recently(c.db, c.channel, 3600, source="claude")
-    if n >= limit:
-        sys.exit(f"rate limit: {n} messages sent to {c.label} in the last hour (max {limit})")
-    if args.reply_to and not args.reply_to.isdigit():
-        sys.exit(f"--reply-to wants a message id (digits), got {args.reply_to!r}")
-    m = _client(c).send(c.channel, text, reply_to=args.reply_to)
-    record_send(c.db, c.channel, text, m.get("id"), source="claude")
-    ref = (m.get("message_reference") or {}).get("message_id")
-    print(f"sent {m.get('id')}" + (f" (reply to {ref})" if ref else ""))
+    try:
+        mid = _chat(c).send(text, reply_to=args.reply_to)
+    except (ValueError, RuntimeError) as e:  # DiscordError is a RuntimeError
+        sys.exit(str(e))
+    print(f"sent {mid}")
+
+
+def cmd_react(c: cfg.Config, args) -> None:
+    """Add (or with --remove, take off) the bot's reaction on a message."""
+    try:
+        _chat(c).react(args.message_id, args.emoji, remove=args.remove)
+    except (ValueError, RuntimeError) as e:
+        sys.exit(str(e))
+    print(f"{'unreacted' if args.remove else 'reacted'} {args.emoji} on {args.message_id}")
+
+
+def cmd_edit(c: cfg.Config, args) -> None:
+    """Edit one of the bot's own messages."""
+    text = args.text if args.text is not None else sys.stdin.read()
+    try:
+        mid = _chat(c).edit(args.message_id, text)
+    except (ValueError, RuntimeError) as e:
+        sys.exit(str(e))
+    print(f"edited {mid}")
+
+
+def cmd_delete(c: cfg.Config, args) -> None:
+    """Delete one of the bot's own messages."""
+    try:
+        _chat(c).delete(args.message_id)
+    except (ValueError, RuntimeError) as e:
+        sys.exit(str(e))
+    print(f"deleted {args.message_id}")
 
 
 def cmd_watch(c: cfg.Config, args) -> None:
@@ -142,6 +165,21 @@ def main() -> None:
     s.add_argument("text", nargs="?", help="message text (default: stdin)")
     s.add_argument("--reply-to", metavar="MESSAGE_ID", help="post as a Discord reply to this message id")
     s.set_defaults(fn=cmd_send)
+
+    rc = sub.add_parser("react", help="add/remove the bot's reaction on a message")
+    rc.add_argument("message_id", help="the message's id (the #id shown by transcript/follow)")
+    rc.add_argument("emoji", help="unicode emoji, or name:id for a custom emoji")
+    rc.add_argument("--remove", action="store_true", help="take the reaction off instead")
+    rc.set_defaults(fn=cmd_react)
+
+    ed = sub.add_parser("edit", help="edit one of the bot's own messages")
+    ed.add_argument("message_id", help="the message's id")
+    ed.add_argument("text", nargs="?", help="new text (default: stdin)")
+    ed.set_defaults(fn=cmd_edit)
+
+    dl = sub.add_parser("delete", help="delete one of the bot's own messages")
+    dl.add_argument("message_id", help="the message's id")
+    dl.set_defaults(fn=cmd_delete)
 
     f = sub.add_parser("follow", help="stream bursts of new messages to stdout for a coordinator session")
     f.add_argument("--after", type=int, help="start after this archive seq (default: now)")

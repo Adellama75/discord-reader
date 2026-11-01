@@ -49,8 +49,8 @@ class FakeDiscord:
             return self.msgs[-limit:]
         return [m for m in self.msgs if int(m["id"]) > int(after)]
 
-    def react(self, mid: str, emoji: str, *user_ids: str):
-        """Add reactions the way Discord reports them: counts on the message, users on request."""
+    def incoming_react(self, mid: str, emoji: str, *user_ids: str):
+        """Test helper: simulate other people reacting (counts on the message, users on request)."""
         m = next(x for x in self.msgs if x["id"] == mid)
         self.reactors = getattr(self, "reactors", {})
         self.reactors.setdefault((mid, emoji), []).extend(user_ids)
@@ -66,6 +66,21 @@ class FakeDiscord:
     def send(self, cid, text, reply_to=None):
         self.sent.append(text)
         return self.add(ME, text)
+
+    def react(self, cid, mid, emoji, remove=False):
+        """The bot's own outgoing reaction (the discord.Client write method)."""
+        self.calls.append(("react", mid, emoji, remove))
+
+    def edit(self, cid, mid, text):
+        self.calls.append(("edit", mid, text))
+        for m in self.msgs:
+            if m["id"] == mid:
+                m["content"] = text
+        return {"id": mid, "content": text}
+
+    def delete(self, cid, mid):
+        self.calls.append(("delete", mid))
+        self.msgs = [m for m in self.msgs if m["id"] != mid]
 
     def download(self, url, dest: Path, max_bytes):
         dest.parent.mkdir(parents=True, exist_ok=True)

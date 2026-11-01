@@ -6,7 +6,8 @@ from zoneinfo import ZoneInfo
 from chatagent import Chat, Msg, core
 
 from . import config as cfg
-from .store import Message, last_reaction_seq, last_seq, message_by_id, messages_after, messages_before, reactions_after, transcript
+from .store import (Message, last_reaction_seq, last_seq, message_by_id, messages_after, messages_before, reactions_after,
+                    record_send, sent_recently, transcript)
 from .sync import sync, sync_reactions
 
 
@@ -30,7 +31,7 @@ class DiscordChat(Chat):
         self.me = who["id"]
         self.names = (who.get("username", ""),) if getattr(client, "bot", True) else ()  # a bot answers to its @username
         self.label, self.data_dir, self.attachments = c.label, c.data_dir, str(c.attachments_dir)
-        self.tools = ["Bash(discord-reader send:*)"]
+        self.tools = [f"Bash(discord-reader {v}:*)" for v in ("send", "react", "edit", "delete")]
         self.rules = core.posting_rules('discord-reader send "<text>"')
         self.rcursor = last_reaction_seq(c.db)
 
@@ -66,3 +67,35 @@ class DiscordChat(Chat):
             out.append(f"[{datetime.fromtimestamp(r.ts, zone):%a %d %b %H:%M}] {self.c.names.get(r.user_id, r.user)} reacted "
                        f"{r.emoji.split(':')[0]} to {self.c.names.get(target.author_id, target.author)}: {snippet}")
         return out
+
+    # --- writes (chatagent.Chat contract) -----------------------------------
+    def send(self, text: str, reply_to: str | None = None) -> str:
+        text = text.strip()
+        if not text:
+            raise ValueError("nothing to send")
+        if len(text) > 1950:
+            raise ValueError(f"too long for Discord ({len(text)} > 1950 characters)")
+        if reply_to is not None and not str(reply_to).isdigit():
+            raise ValueError(f"reply-to wants a message id (digits), got {reply_to!r}")
+        limit = self.c.agent.max_sends_per_hour if self.c.agent else 8
+        n = sent_recently(self.c.db, self.c.channel, 3600, source="claude")
+        if n >= limit:
+            raise RuntimeError(f"rate limit: {n} messages sent to {self.label} in the last hour (max {limit})")
+        m = self.client.send(self.c.channel, text, reply_to=reply_to)
+        record_send(self.c.db, self.c.channel, text, m.get("id"), source="claude")
+        return m.get("id")
+
+    def react(self, msg_id: str, emoji: str, *, remove: bool = False) -> None:
+        self.client.react(self.c.channel, str(msg_id), emoji, remove=remove)
+
+    def edit(self, msg_id: str, text: str) -> str:
+        text = text.strip()
+        if not text:
+            raise ValueError("nothing to edit to")
+        if len(text) > 1950:
+            raise ValueError(f"too long for Discord ({len(text)} > 1950 characters)")
+        m = self.client.edit(self.c.channel, str(msg_id), text)
+        return m.get("id")
+
+    def delete(self, msg_id: str) -> None:
+        self.client.delete(self.c.channel, str(msg_id))

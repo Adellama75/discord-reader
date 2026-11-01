@@ -75,6 +75,20 @@ class Client:
             body["message_reference"] = {"message_id": reply_to, "fail_if_not_exists": False}
         return self._req("POST", f"/channels/{cid}/messages", json=body)
 
+    def react(self, cid: str, mid: str, emoji: str, remove: bool = False) -> None:
+        """Add (or remove) the bot's own `emoji` reaction on a message. `emoji` is a unicode
+        char, or `name:id` for a custom emoji."""
+        path = f"/channels/{cid}/messages/{mid}/reactions/{urllib.parse.quote(emoji)}/@me"
+        self._req("DELETE" if remove else "PUT", path)
+
+    def edit(self, cid: str, mid: str, text: str) -> dict:
+        """Edit one of the bot's own messages (Discord only lets you edit your own)."""
+        return self._req("PATCH", f"/channels/{cid}/messages/{mid}", json={"content": text})
+
+    def delete(self, cid: str, mid: str) -> None:
+        """Delete a message (the bot's own, or any with Manage Messages)."""
+        self._req("DELETE", f"/channels/{cid}/messages/{mid}")
+
     def download(self, url: str, dest: Path, max_bytes: int) -> bool:
         """Save an attachment (CDN, no token needed). False if it is bigger than max_bytes."""
         dest.parent.mkdir(parents=True, exist_ok=True)
