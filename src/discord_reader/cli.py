@@ -106,6 +106,15 @@ def cmd_delete(c: cfg.Config, args) -> None:
     print(f"deleted {args.message_id}")
 
 
+def cmd_nick(c: cfg.Config, args) -> None:
+    """Set the bot's own server nickname (empty to clear)."""
+    try:
+        _chat(c).nick(args.name)
+    except (ValueError, RuntimeError) as e:
+        sys.exit(str(e))
+    print("cleared nickname" if not args.name else f"nickname -> {args.name!r}")
+
+
 def cmd_watch(c: cfg.Config, args) -> None:
     """Keep the archive current over the Gateway (push): sync on every event for the channel and on
     every reconnect. Read-only; run `follow` or `agent` on the archive it keeps."""
@@ -180,6 +189,10 @@ def main() -> None:
     dl = sub.add_parser("delete", help="delete one of the bot's own messages")
     dl.add_argument("message_id", help="the message's id")
     dl.set_defaults(fn=cmd_delete)
+
+    nk = sub.add_parser("nick", help="set the bot's own server nickname (omit name to clear)")
+    nk.add_argument("name", nargs="?", default="", help="new nickname; omit to clear")
+    nk.set_defaults(fn=cmd_nick)
 
     f = sub.add_parser("follow", help="stream bursts of new messages to stdout for a coordinator session")
     f.add_argument("--after", type=int, help="start after this archive seq (default: now)")

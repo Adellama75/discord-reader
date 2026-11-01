@@ -181,8 +181,16 @@ def test_react_edit_delete_call_the_client(conf, fake, monkeypatch):
 
 def test_write_verbs_are_in_the_allowed_tools(conf, fake):
     chat = DiscordChat(conf, fake)
-    for v in ("send", "react", "edit", "delete"):
+    for v in ("send", "react", "edit", "delete", "nick"):
         assert f"Bash(discord-reader {v}:*)" in chat.tools
+
+
+def test_nick_sets_the_bots_guild_nickname(conf, fake, monkeypatch):
+    monkeypatch.setattr(cli, "_client", lambda c: fake)
+    cli.cmd_nick(conf, type("A", (), {"name": "Ada's assistant"})())
+    assert ("nick", "GUILD", "Ada's assistant") in fake.calls
+    cli.cmd_nick(conf, type("A", (), {"name": ""})())  # clear
+    assert ("nick", "GUILD", "") in fake.calls
 
 
 def test_edit_rejects_empty_text(conf, fake, monkeypatch):

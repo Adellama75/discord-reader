@@ -41,7 +41,7 @@ class FakeDiscord:
         return {"id": ME, "username": "teambot", "global_name": "Team Bot"}
 
     def channel(self, cid):
-        return {"id": cid, "type": 3, "name": "test group", "recipients": []}
+        return {"id": cid, "type": 3, "name": "test group", "recipients": [], "guild_id": "GUILD"}
 
     def messages(self, cid, after=None, limit=100):
         self.calls.append(("messages", after, limit))
@@ -81,6 +81,9 @@ class FakeDiscord:
     def delete(self, cid, mid):
         self.calls.append(("delete", mid))
         self.msgs = [m for m in self.msgs if m["id"] != mid]
+
+    def nick(self, guild_id, name):
+        self.calls.append(("nick", guild_id, name))
 
     def download(self, url, dest: Path, max_bytes):
         dest.parent.mkdir(parents=True, exist_ok=True)

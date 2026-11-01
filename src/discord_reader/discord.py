@@ -89,6 +89,10 @@ class Client:
         """Delete a message (the bot's own, or any with Manage Messages)."""
         self._req("DELETE", f"/channels/{cid}/messages/{mid}")
 
+    def nick(self, guild_id: str, name: str) -> None:
+        """Set the bot's own nickname in a guild (needs CHANGE_NICKNAME). Empty name clears it."""
+        self._req("PATCH", f"/guilds/{guild_id}/members/@me", json={"nick": name or None})
+
     def download(self, url: str, dest: Path, max_bytes: int) -> bool:
         """Save an attachment (CDN, no token needed). False if it is bigger than max_bytes."""
         dest.parent.mkdir(parents=True, exist_ok=True)

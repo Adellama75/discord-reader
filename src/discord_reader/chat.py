@@ -31,7 +31,7 @@ class DiscordChat(Chat):
         self.me = who["id"]
         self.names = (who.get("username", ""),) if getattr(client, "bot", True) else ()  # a bot answers to its @username
         self.label, self.data_dir, self.attachments = c.label, c.data_dir, str(c.attachments_dir)
-        self.tools = [f"Bash(discord-reader {v}:*)" for v in ("send", "react", "edit", "delete")]
+        self.tools = [f"Bash(discord-reader {v}:*)" for v in ("send", "react", "edit", "delete", "nick")]
         self.rules = core.posting_rules('discord-reader send "<text>"')
         self.rcursor = last_reaction_seq(c.db)
 
@@ -99,3 +99,10 @@ class DiscordChat(Chat):
 
     def delete(self, msg_id: str) -> None:
         self.client.delete(self.c.channel, str(msg_id))
+
+    # Discord-only (not a Chat contract method): the bot's own server nickname.
+    def nick(self, name: str) -> None:
+        guild = self.client.channel(self.c.channel).get("guild_id")
+        if not guild:
+            raise RuntimeError("this channel has no guild (nicknames are server-only)")
+        self.client.nick(guild, name)
