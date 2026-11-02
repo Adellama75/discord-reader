@@ -92,6 +92,9 @@ class Client:
         """Delete a message (the bot's own, or any with Manage Messages)."""
         self._req("DELETE", f"/channels/{cid}/messages/{mid}")
 
+    def member(self, guild_id: str, user_id: str) -> dict:
+        return self._req("GET", f"/guilds/{guild_id}/members/{user_id}")
+
     def nick(self, guild_id: str, name: str) -> None:
         """Set the bot's own nickname in a guild (needs CHANGE_NICKNAME). Empty name clears it."""
         self._req("PATCH", f"/guilds/{guild_id}/members/@me", json={"nick": name or None})

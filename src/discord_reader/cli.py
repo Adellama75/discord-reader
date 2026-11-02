@@ -112,12 +112,16 @@ def cmd_delete(c: cfg.Config, args) -> None:
 
 
 def cmd_nick(c: cfg.Config, args) -> None:
-    """Set the bot's own server nickname (empty to clear)."""
+    """Show the bot's own server nickname, set it, or (--clear) clear it."""
+    name = "" if args.clear else args.name
     try:
-        _chat(c).nick(args.name)
+        now = _chat(c).nick(name)
     except (ValueError, RuntimeError) as e:
         sys.exit(str(e))
-    print("cleared nickname" if not args.name else f"nickname -> {args.name!r}")
+    if name is None:
+        print(f"nickname: {now!r}" if now else "nickname: (none, shows the account name)")
+    else:
+        print(f"nickname -> {now!r}" if now else "cleared nickname")
 
 
 def cmd_watch(c: cfg.Config, args) -> None:
@@ -195,8 +199,9 @@ def main() -> None:
     dl.add_argument("message_id", help="the message's id")
     dl.set_defaults(fn=cmd_delete)
 
-    nk = sub.add_parser("nick", help="set the bot's own server nickname (omit name to clear)")
-    nk.add_argument("name", nargs="?", default="", help="new nickname; omit to clear")
+    nk = sub.add_parser("nick", help="show or set the bot's own server nickname")
+    nk.add_argument("name", nargs="?", help="new nickname; omit to show the current one")
+    nk.add_argument("--clear", action="store_true", help="clear the nickname")
     nk.set_defaults(fn=cmd_nick)
 
     f = sub.add_parser("follow", help="stream bursts of new messages to stdout for a coordinator session")

@@ -87,6 +87,10 @@ class FakeDiscord:
 
     def nick(self, guild_id, name):
         self.calls.append(("nick", guild_id, name))
+        self.nickname = name
+
+    def member(self, guild_id, user_id):
+        return {"nick": getattr(self, "nickname", "") or None}
 
     def download(self, url, dest: Path, max_bytes):
         dest.parent.mkdir(parents=True, exist_ok=True)

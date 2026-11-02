@@ -185,12 +185,29 @@ def test_write_verbs_are_in_the_allowed_tools(conf, fake):
         assert f"Bash(discord-reader {v}:*)" in chat.tools
 
 
-def test_nick_sets_the_bots_guild_nickname(conf, fake, monkeypatch):
+def test_nick_shows_sets_and_clears(conf, fake, monkeypatch, capsys):
     monkeypatch.setattr(cli, "_client", lambda c: fake)
-    cli.cmd_nick(conf, type("A", (), {"name": "Ada's assistant"})())
+    ns = lambda name=None, clear=False: type("A", (), {"name": name, "clear": clear})()
+    cli.cmd_nick(conf, ns("Ada's assistant"))
     assert ("nick", "GUILD", "Ada's assistant") in fake.calls
-    cli.cmd_nick(conf, type("A", (), {"name": ""})())  # clear
+    capsys.readouterr()
+    cli.cmd_nick(conf, ns())  # show
+    assert "nickname: \"Ada's assistant\"" in capsys.readouterr().out
+    assert fake.calls[-1][0] == "nick"  # showing changes nothing
+    cli.cmd_nick(conf, ns(clear=True))
     assert ("nick", "GUILD", "") in fake.calls
+
+
+def test_edit_and_delete_update_the_archive(conf, fake, monkeypatch):
+    from discord_reader.store import message_by_id
+    from discord_reader.sync import sync
+    monkeypatch.setattr(cli, "_client", lambda c: fake)
+    mid = fake.add(ME, "first")["id"]
+    sync(conf, fake)
+    cli.cmd_edit(conf, type("A", (), {"message_id": mid, "text": "second"})())
+    assert message_by_id(conf.db, mid).content == "second"
+    cli.cmd_delete(conf, type("A", (), {"message_id": mid})())
+    assert message_by_id(conf.db, mid) is None
 
 
 def test_edit_rejects_empty_text(conf, fake, monkeypatch):

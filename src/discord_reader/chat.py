@@ -6,8 +6,8 @@ from zoneinfo import ZoneInfo
 from chatagent import Chat, Msg, core
 
 from . import config as cfg
-from .store import (Message, last_reaction_seq, last_seq, message_by_id, messages_after, messages_before, reactions_after,
-                    record_send, sent_recently, transcript)
+from .store import (Message, delete_messages, last_reaction_seq, last_seq, message_by_id, messages_after, messages_before,
+                    reactions_after, record_send, sent_recently, transcript, update_content)
 from .sync import sync, sync_reactions
 
 
@@ -95,14 +95,21 @@ class DiscordChat(Chat):
         if len(text) > 1950:
             raise ValueError(f"too long for Discord ({len(text)} > 1950 characters)")
         m = self.client.edit(self.c.channel, str(msg_id), text)
+        update_content(self.c.db, str(msg_id), text)  # the archive shows the edit straight away
         return m.get("id")
 
     def delete(self, msg_id: str) -> None:
         self.client.delete(self.c.channel, str(msg_id))
+        delete_messages(self.c.db, [str(msg_id)])  # and drops the message straight away
 
     # Discord-only (not a Chat contract method): the bot's own server nickname.
-    def nick(self, name: str) -> None:
+    def nick(self, name: str | None = None) -> str:
+        """Set the bot's server nickname ("" clears it); with None, just read it. Returns the nickname now
+        in effect ("" for none)."""
         guild = self.client.channel(self.c.channel).get("guild_id")
         if not guild:
             raise RuntimeError("this channel has no guild (nicknames are server-only)")
+        if name is None:
+            return self.client.member(guild, self.client.me()["id"]).get("nick") or ""
         self.client.nick(guild, name)
+        return name
