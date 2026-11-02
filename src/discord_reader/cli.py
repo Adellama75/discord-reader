@@ -23,9 +23,14 @@ def cmd_status(c: cfg.Config, args) -> None:
     client = _client(c)
     u = client.me()
     ch = client.channel(c.channel)
-    who = ", ".join((r.get("global_name") or r["username"]) for r in ch.get("recipients", []))
+    if ch.get("recipients"):  # a group DM: name the people in it
+        where = " with " + ", ".join((r.get("global_name") or r["username"]) for r in ch["recipients"])
+    elif ch.get("guild_id"):  # a server channel: name the server
+        where = f" in {client.guild(ch['guild_id']).get('name') or ch['guild_id']}"
+    else:
+        where = ""
     print(f"account: {u.get('global_name') or u['username']} (@{u['username']})")
-    print(f"channel: {ch.get('name') or c.label} [{c.channel}] with {who}")
+    print(f"channel: {ch.get('name') or c.label} [{c.channel}]{where}")
     if c.db.exists():
         n = last_seq(c.db)
         recent = messages_before(c.db, c.channel, n + 1, 1)

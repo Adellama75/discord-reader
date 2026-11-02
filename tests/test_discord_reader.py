@@ -344,3 +344,9 @@ def test_gateway_reconnect_catches_up_on_what_was_missed(conf, fake):
     handle(conf, fake, {"t": "READY", "d": {"user": {"username": "teambot"}}})
     assert [m.content for m in messages_after(conf.db, CHANNEL, 0)] == \
         ["before the drop", "while disconnected 1", "while disconnected 2"]
+
+
+def test_status_names_the_server_of_a_guild_channel(conf, fake, monkeypatch, capsys):
+    monkeypatch.setattr(cli, "_client", lambda c: fake)
+    cli.cmd_status(conf, None)
+    assert "[1000] in Test Server" in capsys.readouterr().out

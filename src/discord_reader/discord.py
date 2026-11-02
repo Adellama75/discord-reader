@@ -48,6 +48,9 @@ class Client:
     def channel(self, cid: str) -> dict:
         return self._req("GET", f"/channels/{cid}")
 
+    def guild(self, gid: str) -> dict:
+        return self._req("GET", f"/guilds/{gid}")
+
     def messages(self, cid: str, after: str | None = None, limit: int = 100) -> list[dict]:
         """Raw message objects, oldest first. With `after`: everything newer than that id
         (paged by 100). Without: the latest `limit`."""

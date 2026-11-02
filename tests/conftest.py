@@ -43,6 +43,9 @@ class FakeDiscord:
     def channel(self, cid):
         return {"id": cid, "type": 3, "name": "test group", "recipients": [], "guild_id": "GUILD"}
 
+    def guild(self, gid):
+        return {"id": gid, "name": "Test Server"}
+
     def messages(self, cid, after=None, limit=100):
         self.calls.append(("messages", after, limit))
         if after is None:
