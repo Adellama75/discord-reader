@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.12"
 
 [[package]]
@@ -27,7 +27,7 @@ wheels = [
 [[package]]
 name = "chatagent"
 version = "0.1.0"
-source = { editable = "/home/ada/dev/chat-agent" }
+source = { editable = "../chat-agent" }
 
 [package.metadata]
 
@@ -60,7 +60,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "chatagent", editable = "/home/ada/dev/chat-agent" },
+    { name = "chatagent", editable = "../chat-agent" },
     { name = "httpx" },
     { name = "websockets", specifier = ">=13" },
 ]
