@@ -224,7 +224,7 @@ def main() -> None:
     nk.set_defaults(fn=cmd_nick)
 
     f = sub.add_parser("follow", help="stream bursts of new messages to stdout for a coordinator session")
-    f.add_argument("--after", type=int, help="start after this archive seq (default: now)")
+    f.add_argument("--after", type=int, help="start after this archive seq (default: resume from follow.cursor, else now)")
     f.add_argument("--interval", type=float, default=5, help="seconds between archive checks")
     f.add_argument("--sync", action="store_true", help="poll Discord too (when the service isn't running)")
     f.add_argument("--polls", type=int, help="stop after N checks (tests)")
