@@ -30,9 +30,9 @@ class DiscordChat(Chat):
         who = client.me()
         self.me = who["id"]
         self.names = (who.get("username", ""),) if getattr(client, "bot", True) else ()  # a bot answers to its @username
-        self.label, self.data_dir, self.attachments = c.label, c.data_dir, str(c.attachments_dir)
-        self.tools = [f"Bash(discord-reader {v}:*)" for v in ("send", "react", "edit", "delete", "nick")]
-        self.rules = core.posting_rules('discord-reader send "<text>"')
+        self.label, self.data_dir, self.attachments = c.label, c.state_dir, str(c.attachments_dir)
+        self.tools = [f"Bash(discord-reader {c.flag}{v}:*)" for v in ("send", "react", "edit", "delete", "nick")]
+        self.rules = core.posting_rules(f'discord-reader {c.flag}send "<text>"')
         self.rcursor = last_reaction_seq(c.db)
 
     def _msg(self, m: Message) -> Msg:
@@ -61,7 +61,7 @@ class DiscordChat(Chat):
         for r in reactions_after(self.c.db, self.rcursor):
             self.rcursor = r.seq
             target = message_by_id(self.c.db, r.message_id)
-            if r.user_id == self.me or target is None:
+            if r.user_id == self.me or target is None or target.channel != self.c.channel:
                 continue
             snippet = target.content.replace("\n", " ")[:60]
             out.append(f"[{datetime.fromtimestamp(r.ts, zone):%a %d %b %H:%M}] {self.c.names.get(r.user_id, r.user)} reacted "

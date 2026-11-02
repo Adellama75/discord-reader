@@ -9,6 +9,9 @@ timezone = "Europe/London"
 attachments_max_mb = 10                       # save attachments up to this size so Claude can Read them
 # client = "mypackage.module:Class"           # use another client class with the same methods (tests, other transports)
 
+[channels]                                    # more channels the same bot follows: label -> id
+# "design" = "234567890123456789"             # discord-reader --channel design follow --sync
+
 [paths]
 data_dir = "data"                             # relative to this file
 

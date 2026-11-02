@@ -1,6 +1,6 @@
 import os
 import tomllib
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from chatagent import Agent
@@ -18,6 +18,14 @@ class Config:
     attachments_max_mb: float = 10  # attachments up to this size are saved so Claude can Read them
     names: dict[str, str] = field(default_factory=dict)  # user id -> display name override
     agent: Agent | None = None  # chat-agent settings ([agent])
+    channels: dict[str, str] = field(default_factory=dict)  # [channels] label -> id: more channels one bot can follow
+    flag: str = ""  # "--channel <label> " when this config was picked with --channel (commands the agent runs carry it)
+
+    @property
+    def state_dir(self) -> Path:
+        """Cursors, heartbeat and logs for this channel: data_dir for the main channel, data_dir/channels/<id>
+        for one picked with --channel. The archive (messages.db) is shared by all channels."""
+        return self.data_dir / "channels" / self.channel if self.flag else self.data_dir
 
     @property
     def db(self) -> Path:
@@ -35,6 +43,23 @@ def token(c: Config) -> str:
     if not t:
         raise SystemExit(f"no Discord token: put it in {c.token_file} (chmod 600) or set DISCORD_TOKEN")
     return t
+
+
+def pick(c: Config, name: str | None) -> Config:
+    """The config for one channel: `name` is a [channels] label, a channel id, or None/the main channel."""
+    if not name:
+        return c
+    name = name.strip().removeprefix("#")
+    if name in (c.channel, c.label):
+        return c
+    if name in c.channels:
+        cid, label = c.channels[name], name
+    elif name.isdigit():
+        cid, label = name, next((k for k, v in c.channels.items() if v == name), name)
+    else:
+        raise SystemExit(f"--channel {name}: not a [channels] label or a channel id "
+                         f"(labels: {', '.join([c.label, *c.channels]) or '-'})")
+    return replace(c, channel=cid, label=label, flag=f"--channel {label} ")
 
 
 def load(path: Path) -> Config:
@@ -60,4 +85,5 @@ def load(path: Path) -> Config:
         attachments_max_mb=float(d.get("attachments_max_mb", 10)),
         names={str(k): v for k, v in raw.get("names", {}).items()},
         agent=Agent.from_dict(raw.get("agent")),
+        channels={str(k): str(v) for k, v in raw.get("channels", {}).items()},
     )

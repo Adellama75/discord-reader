@@ -383,3 +383,32 @@ def test_send_turns_names_into_pings_and_takes_hash_ids(conf, fake, monkeypatch,
         cli.cmd_send(conf, ns("hi @Zed"))
     cli.cmd_send(conf, ns("agreed @kim", reply_to=f"#{first}"))
     assert fake.sent == [f"agreed <@{KIM}>"]
+
+
+def test_channel_pick_gives_each_channel_its_own_state_and_commands(conf, fake):
+    from dataclasses import replace
+    conf = replace(conf, channels={"hackathon": "2000"})
+    assert cfg.pick(conf, None) is conf and cfg.pick(conf, CHANNEL) is conf
+    for name in ("hackathon", "#hackathon", "2000"):
+        h = cfg.pick(conf, name)
+        assert (h.channel, h.label, h.flag) == ("2000", "hackathon", "--channel hackathon ")
+    assert cfg.pick(conf, "3000").label == "3000"  # any channel id the bot can see
+    with pytest.raises(SystemExit, match="labels: test group, hackathon"):
+        cfg.pick(conf, "nope")
+    h = cfg.pick(conf, "hackathon")
+    assert h.db == conf.db and h.state_dir == conf.data_dir / "channels" / "2000"
+    chat = DiscordChat(h, fake, "")
+    assert chat.data_dir == h.state_dir and "Bash(discord-reader --channel hackathon send:*)" in chat.tools
+    assert 'discord-reader --channel hackathon send "<text>"' in chat.rules
+    assert DiscordChat(conf, fake, "").data_dir == conf.data_dir
+
+
+def test_side_events_stay_in_their_channel(conf, fake):
+    from dataclasses import replace
+    m = fake.add(KIM, "main channel post")
+    sync(conf, fake)
+    other = DiscordChat(cfg.pick(replace(conf, channels={"h": "2000"}), "h"), fake, "")
+    main = DiscordChat(conf, fake, "")
+    fake.incoming_react(m["id"], "👍", LEE)
+    sync_reactions(conf, fake)
+    assert other.side_events() == [] and len(main.side_events()) == 1

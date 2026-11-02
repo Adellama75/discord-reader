@@ -40,9 +40,11 @@ def cmd_status(c: cfg.Config, args) -> None:
         print(f"archive: {c.db} ({n} rows, last {last})")
     else:
         print(f"archive: {c.db} does not exist yet (run `discord-reader sync`)")
-    state = c.data_dir / "agent.json"
+    state = c.state_dir / "agent.json"
     print(f"agent:   cursor file {'present' if state.exists() else 'missing'}; "
-          f"{'PAUSED' if (c.data_dir / 'agent.paused').exists() else 'active'} (data/agent.paused)")
+          f"{'PAUSED' if (c.state_dir / 'agent.paused').exists() else 'active'} ({c.state_dir / 'agent.paused'})")
+    if c.channels and not c.flag:
+        print("more:    " + ", ".join(f"{k} [{v}]" for k, v in c.channels.items()) + " (--channel <label>)")
 
 
 def cmd_sync(c: cfg.Config, args) -> None:
@@ -150,7 +152,9 @@ def cmd_follow(c: cfg.Config, args) -> None:
     from .chat import DiscordChat
 
     chat = DiscordChat(c, _client(c), c.agent.prefix if c.agent else "")
-    follow([chat], c.agent, agent_chat=chat, after=args.after, interval=args.interval, polls=args.polls, fetch=args.sync)
+    # the services keep the main channel's archive current; a --channel follower fetches its own channel
+    follow([chat], c.agent, agent_chat=chat, after=args.after, interval=args.interval, polls=args.polls,
+           fetch=args.sync or bool(c.flag))
 
 
 def cmd_agent(c: cfg.Config, args) -> None:
@@ -177,6 +181,9 @@ def main() -> None:
     # DISCORD_READER_CONFIG lets subprocesses (Claude's `discord-reader send` under `discord-reader agent`) find the same config
     # from any working directory.
     p.add_argument("--config", type=Path, default=Path(os.environ.get("DISCORD_READER_CONFIG", "config.toml")))
+    p.add_argument("--channel", metavar="LABEL|ID", default=os.environ.get("DISCORD_READER_CHANNEL"),
+                   help="act on another channel the bot can see: a label from [channels] in config.toml, or an id "
+                        "(default: [discord] channel). Each channel keeps its own cursors, so each can have its own session.")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("whoami", help="confirm the token works").set_defaults(fn=cmd_whoami)
@@ -235,4 +242,4 @@ def main() -> None:
     if not path.exists():
         sys.exit(f"{path} not found (copy config.example.toml, or set DISCORD_READER_CONFIG)")
     os.environ["DISCORD_READER_CONFIG"] = str(path)
-    args.fn(cfg.load(path), args)
+    args.fn(cfg.pick(cfg.load(path), args.channel), args)
