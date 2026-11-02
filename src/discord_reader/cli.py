@@ -4,6 +4,8 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from chatagent import BUG_HELP
+
 from . import config as cfg
 from .discord import load_client
 from .store import last_seq, messages_after, messages_before, messages_since, transcript
@@ -162,7 +164,8 @@ def cmd_agent(c: cfg.Config, args) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser(prog="discord-reader",
-                                description="one Discord group chat -> Claude Code -> GitHub issues and replies")
+                                description="one Discord group chat -> Claude Code -> GitHub issues and replies",
+                                epilog=BUG_HELP, formatter_class=argparse.RawDescriptionHelpFormatter)
     # DISCORD_READER_CONFIG lets subprocesses (Claude's `discord-reader send` under `discord-reader agent`) find the same config
     # from any working directory.
     p.add_argument("--config", type=Path, default=Path(os.environ.get("DISCORD_READER_CONFIG", "config.toml")))
