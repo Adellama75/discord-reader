@@ -223,6 +223,12 @@ def update_content(db: Path, message_id: str, content: str) -> None:
         conn.execute("UPDATE messages SET content=? WHERE id=?", (content, message_id))
 
 
+def authors(db: Path, channel: str) -> dict[str, str]:
+    """Everyone who has posted in the channel: author id -> the display name they last posted under."""
+    with connect(db) as conn:
+        return dict(conn.execute("SELECT author_id, author FROM messages WHERE channel=? ORDER BY seq", (channel,)).fetchall())
+
+
 def stored_ids_since(db: Path, channel: str, first: str) -> list[str]:
     """Stored message ids from snowflake `first` on (snowflakes are ordered by time)."""
     with connect(db) as conn:

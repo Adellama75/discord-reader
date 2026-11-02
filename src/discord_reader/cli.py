@@ -75,11 +75,19 @@ def _chat(c: cfg.Config):
     return DiscordChat(c, _client(c), c.agent.prefix if c.agent else "")
 
 
+def _id(s: str | None) -> str | None:
+    """A message id as given: the #id that follow / transcript --ids show works as well as the bare id."""
+    return None if s is None else s.strip().removeprefix("#")
+
+
 def cmd_send(c: cfg.Config, args) -> None:
     """Post one message to the configured channel, under the hourly rate limit."""
     text = args.text if args.text is not None else sys.stdin.read()
     try:
-        mid = _chat(c).send(text, reply_to=args.reply_to)
+        if getattr(args, "dry_run", False):
+            print(f"would send: {_chat(c).outgoing(text)}")
+            return
+        mid = _chat(c).send(text, reply_to=_id(args.reply_to))
     except (ValueError, RuntimeError) as e:  # DiscordError is a RuntimeError
         sys.exit(str(e))
     print(f"sent {mid}")
@@ -88,7 +96,7 @@ def cmd_send(c: cfg.Config, args) -> None:
 def cmd_react(c: cfg.Config, args) -> None:
     """Add (or with --remove, take off) the bot's reaction on a message."""
     try:
-        _chat(c).react(args.message_id, args.emoji, remove=args.remove)
+        _chat(c).react(_id(args.message_id), args.emoji, remove=args.remove)
     except (ValueError, RuntimeError) as e:
         sys.exit(str(e))
     print(f"{'unreacted' if args.remove else 'reacted'} {args.emoji} on {args.message_id}")
@@ -98,7 +106,7 @@ def cmd_edit(c: cfg.Config, args) -> None:
     """Edit one of the bot's own messages."""
     text = args.text if args.text is not None else sys.stdin.read()
     try:
-        mid = _chat(c).edit(args.message_id, text)
+        mid = _chat(c).edit(_id(args.message_id), text)
     except (ValueError, RuntimeError) as e:
         sys.exit(str(e))
     print(f"edited {mid}")
@@ -107,7 +115,7 @@ def cmd_edit(c: cfg.Config, args) -> None:
 def cmd_delete(c: cfg.Config, args) -> None:
     """Delete one of the bot's own messages."""
     try:
-        _chat(c).delete(args.message_id)
+        _chat(c).delete(_id(args.message_id))
     except (ValueError, RuntimeError) as e:
         sys.exit(str(e))
     print(f"deleted {args.message_id}")
@@ -184,7 +192,8 @@ def main() -> None:
 
     s = sub.add_parser("send", help="post one message to the configured channel")
     s.add_argument("text", nargs="?", help="message text (default: stdin)")
-    s.add_argument("--reply-to", metavar="MESSAGE_ID", help="post as a Discord reply to this message id")
+    s.add_argument("--reply-to", metavar="MESSAGE_ID", help="post as a Discord reply to this message id (#id or id)")
+    s.add_argument("--dry-run", action="store_true", help="print the text as it would be posted (mentions resolved); send nothing")
     s.set_defaults(fn=cmd_send)
 
     rc = sub.add_parser("react", help="add/remove the bot's reaction on a message")

@@ -367,3 +367,19 @@ def test_status_names_the_server_of_a_guild_channel(conf, fake, monkeypatch, cap
     monkeypatch.setattr(cli, "_client", lambda c: fake)
     cli.cmd_status(conf, None)
     assert "[1000] in Test Server" in capsys.readouterr().out
+
+
+def test_send_turns_names_into_pings_and_takes_hash_ids(conf, fake, monkeypatch, capsys):
+    from discord_reader.sync import sync
+    monkeypatch.setattr(cli, "_client", lambda c: fake)
+    first = fake.add(KIM, "hello")["id"]
+    fake.add(LEE, "hi")
+    sync(conf, fake)
+    ns = lambda text, **k: type("A", (), {"text": text, "reply_to": None, "dry_run": False, **k})()
+    cli.cmd_send(conf, ns("thanks @kim and @Lee!", dry_run=True))
+    assert capsys.readouterr().out.strip() == f"would send: thanks <@{KIM}> and <@{LEE}>!"
+    assert fake.sent == []  # dry run posts nothing
+    with pytest.raises(SystemExit, match="@Zed: nobody"):
+        cli.cmd_send(conf, ns("hi @Zed"))
+    cli.cmd_send(conf, ns("agreed @kim", reply_to=f"#{first}"))
+    assert fake.sent == [f"agreed <@{KIM}>"]

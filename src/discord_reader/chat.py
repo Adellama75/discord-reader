@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from chatagent import Chat, Msg, core
 
 from . import config as cfg
-from .store import (Message, delete_messages, last_reaction_seq, last_seq, message_by_id, messages_after, messages_before,
+from .store import (Message, authors, delete_messages, last_reaction_seq, last_seq, message_by_id, messages_after, messages_before,
                     reactions_after, record_send, sent_recently, transcript, update_content)
 from .sync import sync, sync_reactions
 
@@ -69,12 +69,20 @@ class DiscordChat(Chat):
         return out
 
     # --- writes (chatagent.Chat contract) -----------------------------------
-    def send(self, text: str, reply_to: str | None = None) -> str:
+    def outgoing(self, text: str) -> str:
+        """The text exactly as `send` posts it: trimmed, each @Name of someone who has posted here turned
+        into a <@id> mention (so they are pinged), and checked against Discord's length limit."""
         text = text.strip()
         if not text:
             raise ValueError("nothing to send")
+        names = authors(self.c.db, self.c.channel) | self.c.names if self.c.db.exists() else dict(self.c.names)
+        text = core.resolve_mentions(text, names, lambda i: f"<@{i}>")
         if len(text) > 1950:
             raise ValueError(f"too long for Discord ({len(text)} > 1950 characters)")
+        return text
+
+    def send(self, text: str, reply_to: str | None = None) -> str:
+        text = self.outgoing(text)
         if reply_to is not None and not str(reply_to).isdigit():
             raise ValueError(f"reply-to wants a message id (digits), got {reply_to!r}")
         limit = self.c.agent.max_sends_per_hour if self.c.agent else 8
